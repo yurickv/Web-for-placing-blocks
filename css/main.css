@@ -1,0 +1,8 @@
+.container {
+  border: 1px black solid;
+  position: relative;
+}
+
+.box {
+  position: absolute;
+}
