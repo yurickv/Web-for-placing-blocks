@@ -1,5 +1,7 @@
 p {
-  margin: 0px;
+  padding: 3px;
+  border-radius: 75%;
+  background-color: antiquewhite;
 }
 .section-main {
   padding: 20px;

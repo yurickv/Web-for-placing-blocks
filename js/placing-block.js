@@ -1,22 +1,33 @@
 function efficientBlockPlacement(blockParams, containerSize) {
-  // Сортуємо блоки за зменшенням максимального розміру (ширина або висота)
   const blockCoordinates = [];
   const colorMap = {};
-  for (const block of blockParams) {
-    block.initialOrder = blockParams.indexOf(block) + 1;
-  }
 
-  blockParams.sort(
-    (a, b) => Math.max(b.width, b.height) - Math.max(a.width, a.height)
-  );
+  blockParams.forEach((block, index) => {
+    block.initialOrder = index + 1;
+    block.square = block.width * block.height;
+  });
+
+  // Sort blocks based on a combination of factors for better fitting
+  blockParams.sort((a, b) => {
+    const areaA = a.width * a.height;
+    const areaB = b.width * b.height;
+    const aspectRatioA = a.width / a.height;
+    const aspectRatioB = b.width / b.height;
+
+    // Prioritize blocks with larger area and closer aspect ratio to container
+    return (
+      areaB - areaA ||
+      Math.abs(aspectRatioB - containerAspectRatio) -
+        Math.abs(aspectRatioA - containerAspectRatio)
+    );
+  });
 
   let remainingSpace = containerSize.width * containerSize.height;
   let fullness = 0;
-
+  let totalBlockSquare = 0;
   for (const block of blockParams) {
     let bestFit = null;
-
-    // Перевіряємо можливості розміщення блока та його повертання
+    totalBlockSquare += block.square;
     for (let rotate = 0; rotate < 2; rotate++) {
       const [width, height] = rotate
         ? [block.height, block.width]
@@ -24,7 +35,6 @@ function efficientBlockPlacement(blockParams, containerSize) {
 
       for (let x = 0; x <= containerSize.width - width; x++) {
         for (let y = 0; y <= containerSize.height - height; y++) {
-          // Перевірка чи блок не перекривається з іншими блоками
           const overlapping = blockCoordinates.some(
             (coord) =>
               !(
@@ -37,6 +47,8 @@ function efficientBlockPlacement(blockParams, containerSize) {
 
           if (!overlapping) {
             const area = width * height;
+
+            // Break early if an optimal fit cannot be found
             if (!bestFit || area > bestFit.area) {
               bestFit = { x, y, width, height, area, rotate };
             }
@@ -45,7 +57,6 @@ function efficientBlockPlacement(blockParams, containerSize) {
       }
     }
 
-    // Якщо знайдено місце для блока, додаємо його координати та зменшуємо залишений простір
     if (bestFit) {
       const matchingColor = colorMap[`${block.width}-${block.height}`];
       const color = matchingColor || getRandomHexColor();
@@ -60,24 +71,120 @@ function efficientBlockPlacement(blockParams, containerSize) {
         right: bestFit.x + bestFit.width,
         bottom: bestFit.y + bestFit.height,
         initialOrder: block.initialOrder,
-        width: block.width,
-        height: block.height,
+        width: bestFit.width,
+        height: bestFit.height,
         color: color,
       });
+
       remainingSpace -= bestFit.area;
     }
   }
 
-  // Розрахунок коефіцієнта корисного використання простору
-  fullness = 1 - remainingSpace / (containerSize.width * containerSize.height);
+  const cavities = [];
+  const visited = new Array(containerSize.width)
+    .fill(false)
+    .map(() => new Array(containerSize.height).fill(false));
+
+  for (let x = 0; x < containerSize.width; x++) {
+    for (let y = 0; y < containerSize.height; y++) {
+      if (!visited[x][y] && !isCovered(x, y, blockCoordinates)) {
+        const cavity = findCavity(x, y, visited, blockCoordinates);
+        if (cavity) {
+          cavities.push(cavity);
+        }
+      }
+    }
+  }
+
+  let totalCavityArea = 0;
+
+  for (const cavity of cavities) {
+    const cavityArea =
+      (cavity.right - cavity.left) * (cavity.bottom - cavity.top);
+    totalCavityArea += cavityArea;
+  }
+
+  function isCovered(x, y, blockCoordinates) {
+    return blockCoordinates.some(
+      (coord) =>
+        x >= coord.left && x < coord.right && y >= coord.top && y < coord.bottom
+    );
+  }
+
+  function findCavity(x, y, visited, blockCoordinates) {
+    const queue = [[x, y]];
+    visited[x][y] = true;
+    let left = x,
+      right = x,
+      top = y,
+      bottom = y;
+
+    while (queue.length > 0) {
+      const [cx, cy] = queue.shift();
+
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          if (dx !== 0 || dy !== 0) {
+            const nx = cx + dx;
+            const ny = cy + dy;
+
+            if (
+              nx >= 0 &&
+              nx < visited.length &&
+              ny >= 0 &&
+              ny < visited[0].length &&
+              !visited[nx][ny] &&
+              !isCovered(nx, ny, blockCoordinates)
+            ) {
+              queue.push([nx, ny]);
+              visited[nx][ny] = true;
+              left = Math.min(left, nx);
+              right = Math.max(right, nx);
+              top = Math.min(top, ny);
+              bottom = Math.max(bottom, ny);
+            }
+          }
+        }
+      }
+    }
+
+    // Check if the cavity is fully surrounded by blocks
+    if (
+      left > 0 &&
+      right < visited.length - 1 &&
+      top > 0 &&
+      bottom < visited[0].length - 1
+    ) {
+      const surroundedByBlocks = [
+        [left - 1, top - 1],
+        [left - 1, bottom + 1],
+        [right + 1, top - 1],
+        [right + 1, bottom + 1],
+      ].every(([cx, cy]) => isCovered(cx, cy, blockCoordinates));
+
+      if (surroundedByBlocks) {
+        return { left, right, top, bottom };
+      }
+    }
+
+    return null; // Cavity is not fully surrounded by blocks
+  }
+
+  console.log(totalBlockSquare);
+  console.log(totalCavityArea);
+
+  fullness = 1 - totalCavityArea / (totalCavityArea + totalBlockSquare);
 
   return { fullness, blockCoordinates };
 }
+
+//_______________________________________________________________
 function getRandomHexColor() {
   return `#${Math.floor(Math.random() * 16777215)
     .toString(16)
     .padStart(6, 0)}`;
 }
+
 let blocks = [
   { width: 150, height: 90 },
   { width: 60, height: 145 },
@@ -93,10 +200,12 @@ let container = {
 };
 const width = document.documentElement.clientWidth;
 container.width = width - 40;
+const containerAspectRatio = container.width / container.height;
 
 let result = efficientBlockPlacement(blocks, container);
 console.log(result);
 
+//___________________________________
 const listImgEl = document.querySelector(".container");
 
 listImgEl.style.width = `${container.width}px`;
