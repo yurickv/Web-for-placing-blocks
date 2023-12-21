@@ -1,10 +1,15 @@
 function efficientBlockPlacement(blockParams, containerSize) {
   // Сортуємо блоки за зменшенням максимального розміру (ширина або висота)
+  const blockCoordinates = [];
+  const colorMap = {};
+  for (const block of blockParams) {
+    block.initialOrder = blockParams.indexOf(block) + 1;
+  }
+
   blockParams.sort(
     (a, b) => Math.max(b.width, b.height) - Math.max(a.width, a.height)
   );
 
-  const blockCoordinates = [];
   let remainingSpace = containerSize.width * containerSize.height;
   let fullness = 0;
 
@@ -42,14 +47,22 @@ function efficientBlockPlacement(blockParams, containerSize) {
 
     // Якщо знайдено місце для блока, додаємо його координати та зменшуємо залишений простір
     if (bestFit) {
+      const matchingColor = colorMap[`${block.width}-${block.height}`];
+      const color = matchingColor || getRandomHexColor();
+
+      if (!matchingColor) {
+        colorMap[`${block.width}-${block.height}`] = color;
+      }
+
       blockCoordinates.push({
         top: bestFit.y,
         left: bestFit.x,
         right: bestFit.x + bestFit.width,
         bottom: bestFit.y + bestFit.height,
-        initialOrder: blockParams.indexOf(block) + 1,
+        initialOrder: block.initialOrder,
         width: block.width,
         height: block.height,
+        color: color,
       });
       remainingSpace -= bestFit.area;
     }
@@ -60,7 +73,11 @@ function efficientBlockPlacement(blockParams, containerSize) {
 
   return { fullness, blockCoordinates };
 }
-
+function getRandomHexColor() {
+  return `#${Math.floor(Math.random() * 16777215)
+    .toString(16)
+    .padStart(6, 0)}`;
+}
 let blocks = [
   { width: 150, height: 90 },
   { width: 60, height: 145 },
@@ -71,9 +88,11 @@ let blocks = [
 ];
 
 let container = {
-  width: 350,
+  width: 0,
   height: 300,
 };
+const width = document.documentElement.clientWidth;
+container.width = width - 40;
 
 let result = efficientBlockPlacement(blocks, container);
 console.log(result);
@@ -86,9 +105,9 @@ const imgCreateEl = createBoxWithBoxes();
 
 function createBoxWithBoxes() {
   return result.blockCoordinates
-    .map(({ width, height, top, bottom, right, left }) => {
+    .map(({ width, height, top, bottom, right, left, initialOrder, color }) => {
       return `<div class="box" style="width:${width}px; height: ${height}px; border: 1px black solid; 
-      top: ${top}px; bottom: ${bottom}px; right: ${right}px; left:${left}px"> </div>`;
+      top: ${top}px; bottom: ${bottom}px; right: ${right}px; left:${left}px; background-color:${color}"><p>${initialOrder}</p> </div>`;
     })
     .join("");
 }
