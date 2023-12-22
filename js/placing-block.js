@@ -1,20 +1,58 @@
-function efficientBlockPlacement(blockParams, containerSize) {
+import data from "./block.json" assert { type: "json" };
+
+let container = {
+  width: 500,
+  height: 500,
+};
+const width = document.documentElement.clientWidth;
+const height = document.documentElement.clientHeight;
+container.width = width - 40;
+container.height = height - 140;
+
+const containerAspectRatio = container.width / container.height;
+
+let result = efficientBlockPlacement(data, container);
+console.log(result);
+
+//______________________________________
+
+const listBoxEl = document.querySelector(".container");
+
+listBoxEl.style.width = `${container.width}px`;
+listBoxEl.style.height = `${container.height}px`;
+const boxCreateEl = createBoxWithBoxes();
+
+function createBoxWithBoxes() {
+  return result.blockCoordinates
+    .map(({ width, height, top, bottom, right, left, initialOrder, color }) => {
+      return `<div class="box" style="width:${width}px; height: ${height}px; border: 1px black solid;
+      top: ${top}px; bottom: ${bottom}px; right: ${right}px; left:${left}px; background-color:${color}"><p>${initialOrder}</p> </div>`;
+    })
+    .join("");
+}
+
+listBoxEl.insertAdjacentHTML("beforeend", boxCreateEl);
+
+const fullnessRate = document.querySelector(".fullness");
+fullnessRate.textContent = `fulness ${Math.floor(result.fullness * 100)}%`;
+
+//___________________________________
+
+export function efficientBlockPlacement(blockParams, containerSize) {
   const blockCoordinates = [];
   const colorMap = {};
 
   blockParams.forEach((block, index) => {
-    block.initialOrder = index + 1;
+    block.initialOrder = index;
     block.square = block.width * block.height;
   });
 
-  // Sort blocks based on a combination of factors for better fitting
   blockParams.sort((a, b) => {
     const areaA = a.width * a.height;
     const areaB = b.width * b.height;
     const aspectRatioA = a.width / a.height;
     const aspectRatioB = b.width / b.height;
 
-    // Prioritize blocks with larger area and closer aspect ratio to container
     return (
       areaB - areaA ||
       Math.abs(aspectRatioB - containerAspectRatio) -
@@ -25,6 +63,7 @@ function efficientBlockPlacement(blockParams, containerSize) {
   let remainingSpace = containerSize.width * containerSize.height;
   let fullness = 0;
   let totalBlockSquare = 0;
+
   for (const block of blockParams) {
     let bestFit = null;
     totalBlockSquare += block.square;
@@ -48,7 +87,6 @@ function efficientBlockPlacement(blockParams, containerSize) {
           if (!overlapping) {
             const area = width * height;
 
-            // Break early if an optimal fit cannot be found
             if (!bestFit || area > bestFit.area) {
               bestFit = { x, y, width, height, area, rotate };
             }
@@ -79,7 +117,7 @@ function efficientBlockPlacement(blockParams, containerSize) {
       remainingSpace -= bestFit.area;
     }
   }
-
+  //   Пошук порожнин
   const cavities = [];
   const visited = new Array(containerSize.width)
     .fill(false)
@@ -148,7 +186,7 @@ function efficientBlockPlacement(blockParams, containerSize) {
       }
     }
 
-    // Check if the cavity is fully surrounded by blocks
+    // Перевірка чи порожнина повністю оточена блоками
     if (
       left > 0 &&
       right < visited.length - 1 &&
@@ -167,11 +205,11 @@ function efficientBlockPlacement(blockParams, containerSize) {
       }
     }
 
-    return null; // Cavity is not fully surrounded by blocks
+    return null;
   }
 
-  console.log(totalBlockSquare);
-  console.log(totalCavityArea);
+  console.log("Загальна площа блоків:", totalBlockSquare);
+  console.log("Загальна площа порожнин:", totalCavityArea);
 
   fullness = 1 - totalCavityArea / (totalCavityArea + totalBlockSquare);
 
@@ -184,41 +222,3 @@ function getRandomHexColor() {
     .toString(16)
     .padStart(6, 0)}`;
 }
-
-let blocks = [
-  { width: 150, height: 90 },
-  { width: 60, height: 145 },
-  { width: 140, height: 135 },
-  { width: 250, height: 30 },
-  { width: 100, height: 100 },
-  { width: 60, height: 145 },
-];
-
-let container = {
-  width: 0,
-  height: 300,
-};
-const width = document.documentElement.clientWidth;
-container.width = width - 40;
-const containerAspectRatio = container.width / container.height;
-
-let result = efficientBlockPlacement(blocks, container);
-console.log(result);
-
-//___________________________________
-const listImgEl = document.querySelector(".container");
-
-listImgEl.style.width = `${container.width}px`;
-listImgEl.style.height = `${container.height}px`;
-const imgCreateEl = createBoxWithBoxes();
-
-function createBoxWithBoxes() {
-  return result.blockCoordinates
-    .map(({ width, height, top, bottom, right, left, initialOrder, color }) => {
-      return `<div class="box" style="width:${width}px; height: ${height}px; border: 1px black solid; 
-      top: ${top}px; bottom: ${bottom}px; right: ${right}px; left:${left}px; background-color:${color}"><p>${initialOrder}</p> </div>`;
-    })
-    .join("");
-}
-
-listImgEl.insertAdjacentHTML("beforeend", imgCreateEl);
