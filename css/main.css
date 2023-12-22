@@ -17,3 +17,7 @@ p {
   justify-content: center;
   align-items: center;
 }
+.message {
+  padding: 0px;
+  background-color: inherit;
+}
